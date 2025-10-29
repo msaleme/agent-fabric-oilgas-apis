@@ -1,0 +1,63 @@
+name: Validate OpenAPI Specifications
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install OpenAPI tools
+      run: |
+        npm install -g @apidevtools/swagger-parser
+        npm install -g @stoplight/spectral-cli
+        
+    - name: Validate OpenAPI specifications
+      run: |
+        echo "Validating API specifications..."
+        
+        # Validate each API spec
+        for spec in *.yaml; do
+          if [[ "$spec" != "*.yaml" ]]; then
+            echo "Validating $spec..."
+            swagger-parser validate "$spec"
+            spectral lint "$spec" --ruleset https://raw.githubusercontent.com/stoplightio/spectral/develop/packages/rulesets/src/oas/index.ts
+          fi
+        done
+        
+    - name: Check documentation completeness
+      run: |
+        echo "Checking documentation completeness..."
+        
+        # Check if all required files exist
+        required_files=("README.md" "LICENSE" "SETUP_GUIDE.md" "IMPROVEMENTS_SUMMARY.md" "POST_PUBLISHING_NEXT_STEPS.md")
+        
+        for file in "${required_files[@]}"; do
+          if [[ ! -f "$file" ]]; then
+            echo "❌ Missing required file: $file"
+            exit 1
+          else
+            echo "✅ Found: $file"
+          fi
+        done
+        
+        # Check if Postman collection exists
+        if [[ ! -f "Agent-Fabric-OandG-Webinar-APIs.postman_collection.json" ]]; then
+          echo "❌ Missing Postman collection"
+          exit 1
+        else
+          echo "✅ Found: Postman collection"
+        fi
+        
+        echo "📋 Documentation completeness check passed!"
