@@ -1,0 +1,257 @@
+openapi: 3.1.0
+info:
+  title: Maintenance API
+  version: 1.0.0
+  description: >
+    Standardized interface for asset maintenance telemetry, alerting, and
+    governed actions between agents (e.g., Maintenance Agent → Work Order Agent).
+servers:
+  - url: https://api.example.com/maintenance/v1
+tags:
+  - name: Health
+  - name: Telemetry
+  - name: Alerts
+  - name: Maintenance History
+security:
+  - oauth2: [maintenance:read, maintenance:write, maintenance:alerts]
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes:
+            maintenance:read: Read maintenance data
+            maintenance:write: Write maintenance data
+            maintenance:alerts: Create and manage alerts
+  parameters:
+    AssetIdParam:
+      name: assetId
+      in: path
+      required: true
+      description: Unique identifier of the asset
+      schema:
+        type: string
+    AlertIdParam:
+      name: alertId
+      in: path
+      required: true
+      description: Unique identifier of the alert
+      schema:
+        type: string
+  headers:
+    X-Correlation-Id:
+      description: Correlates requests across the Agent Fabric
+      schema:
+        type: string
+    X-RateLimit-Remaining:
+      description: Number of requests remaining in current window
+      schema:
+        type: integer
+    X-Total-Count:
+      description: Total number of items (for paginated responses)
+      schema:
+        type: integer
+  schemas:
+    Asset:
+      type: object
+      properties:
+        id: { type: string }
+        type: { type: string, example: "compressor" }
+        location: { type: string, example: "Plant-12/Unit-3" }
+    TelemetryReading:
+      type: object
+      properties:
+        timestamp: { type: string, format: date-time }
+        metric: { type: string, example: "vibration_rms" }
+        value: { type: number }
+        unit: { type: string, example: "mm/s" }
+    TelemetryResponse:
+      type: object
+      properties:
+        asset: { $ref: "#/components/schemas/Asset" }
+        readings:
+          type: array
+          items: { $ref: "#/components/schemas/TelemetryReading" }
+    Alert:
+      type: object
+      properties:
+        id: { type: string, readOnly: true }
+        assetId: { type: string }
+        severity: { type: string, enum: ["info", "warning", "critical"] }
+        detectedAt: { type: string, format: date-time }
+        message: { type: string }
+        metrics:
+          type: array
+          items: { $ref: "#/components/schemas/TelemetryReading" }
+        x-agent-context:
+          type: object
+          description: Additional context for the Agent Fabric (routing, policy, state)
+          additionalProperties: true
+    ActionRequest:
+      type: object
+      properties:
+        type: { type: string, example: "CREATE_WORK_ORDER" }
+        targetSystem: { type: string, example: "SAP_PM" }
+        parameters:
+          type: object
+          additionalProperties: true
+        x-agent-context:
+          type: object
+          additionalProperties: true
+    MaintenanceEvent:
+      type: object
+      properties:
+        id: { type: string }
+        occurredAt: { type: string, format: date-time }
+        type: { type: string, example: "bearing_replacement" }
+        notes: { type: string }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, example: "VALIDATION_ERROR" }
+        message: { type: string, example: "Invalid asset ID format" }
+        details: { type: object, additionalProperties: true }
+        correlationId: { type: string }
+    AgentContext:
+      type: object
+      properties:
+        sourceAgent: { type: string, example: "maintenance-agent" }
+        targetAgent: { type: string, example: "work-order-agent" }
+        correlationId: { type: string }
+        policies: { type: array, items: { type: string } }
+        priority: { type: string, enum: ["low", "medium", "high", "critical"] }
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check endpoint
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: "healthy" }
+                  timestamp: { type: string, format: date-time }
+                  version: { type: string, example: "1.0.0" }
+  /assets/{assetId}/telemetry:
+    get:
+      tags: [Telemetry]
+      summary: Get telemetry readings for an asset
+      parameters:
+        - $ref: "#/components/parameters/AssetIdParam"
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: Telemetry readings
+          headers:
+            X-Correlation-Id: { $ref: "#/components/headers/X-Correlation-Id" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TelemetryResponse" }
+              examples:
+                sample:
+                  value:
+                    asset: { id: "A-1001", type: "pump", location: "Refinery-1/Area-A" }
+                    readings:
+                      - { timestamp: "2025-10-29T16:00:00Z", metric: "vibration_rms", value: 7.2, unit: "mm/s" }
+                      - { timestamp: "2025-10-29T16:01:00Z", metric: "temperature", value: 105.4, unit: "C" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Asset not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /alerts:
+    post:
+      tags: [Alerts]
+      summary: Create an alert from the Maintenance Agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Alert" }
+            examples:
+              sample:
+                value:
+                  assetId: "A-1001"
+                  severity: "critical"
+                  detectedAt: "2025-10-29T16:05:00Z"
+                  message: "Vibration threshold exceeded"
+                  metrics:
+                    - { timestamp: "2025-10-29T16:04:00Z", metric: "vibration_rms", value: 8.9, unit: "mm/s" }
+                  x-agent-context:
+                    route: "work-order-agent"
+                    policies: ["a2a-enforced", "sox-logging"]
+      responses:
+        "201":
+          description: Alert created
+          headers:
+            X-Correlation-Id: { $ref: "#/components/headers/X-Correlation-Id" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Alert" }
+  /alerts/{alertId}/actions:
+    post:
+      tags: [Alerts]
+      summary: Take a governed action on an existing alert (e.g., create a work order)
+      parameters:
+        - $ref: "#/components/parameters/AlertIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ActionRequest" }
+            examples:
+              createWorkOrder:
+                value:
+                  type: "CREATE_WORK_ORDER"
+                  targetSystem: "SAP_PM"
+                  parameters:
+                    priority: "HIGH"
+                    description: "Auto WO from critical vibration alert"
+                  x-agent-context:
+                    route: "work-order-agent"
+                    delegation: "broker"
+      responses:
+        "202":
+          description: Action accepted for processing
+          headers:
+            X-Correlation-Id: { $ref: "#/components/headers/X-Correlation-Id" }
+  /assets/{assetId}/maintenance-history:
+    get:
+      tags: [Maintenance History]
+      summary: Retrieve the maintenance history for an asset
+      parameters:
+        - $ref: "#/components/parameters/AssetIdParam"
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 1000, default: 100 }
+      responses:
+        "200":
+          description: Historical maintenance events
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MaintenanceEvent" }

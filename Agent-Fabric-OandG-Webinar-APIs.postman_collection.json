@@ -1,0 +1,515 @@
+{
+  "info": {
+    "name": "Agent Fabric O&G Webinar APIs",
+    "_postman_id": "9b4b7b32-3c8a-4b9f-9e3e-2025102916391901",
+    "description": "Sample requests for Maintenance, Work Orders, Procurement, Turnarounds, and O2C APIs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Maintenance API",
+      "item": [
+        {
+          "name": "Get Telemetry",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/maintenance/v1/assets/A-1001/telemetry?from=2025-10-29T16:00:00Z&to=2025-10-29T17:00:00Z",
+              "protocol": "https",
+              "host": ["api", "example", "com"],
+              "path": ["maintenance", "v1", "assets", "A-1001", "telemetry"],
+              "query": [
+                {"key": "from", "value": "2025-10-29T16:00:00Z"},
+                {"key": "to", "value": "2025-10-29T17:00:00Z"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Alert",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/maintenance/v1/alerts",
+              "host": [
+                "https://api.example.com/maintenance/v1/alerts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assetId\": \"A-1001\",\n  \"severity\": \"critical\",\n  \"detectedAt\": \"2025-10-29T16:05:00Z\",\n  \"message\": \"Vibration threshold exceeded\",\n  \"metrics\": [\n    {\n      \"timestamp\": \"2025-10-29T16:04:00Z\",\n      \"metric\": \"vibration_rms\",\n      \"value\": 8.9,\n      \"unit\": \"mm/s\"\n    }\n  ],\n  \"x-agent-context\": {\n    \"route\": \"work-order-agent\",\n    \"policies\": [\n      \"a2a-enforced\",\n      \"sox-logging\"\n    ]\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Alert Action - Create Work Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/maintenance/v1/alerts/AL-123/actions",
+              "host": [
+                "https://api.example.com/maintenance/v1/alerts/AL-123/actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CREATE_WORK_ORDER\",\n  \"targetSystem\": \"SAP_PM\",\n  \"parameters\": {\n    \"priority\": \"HIGH\",\n    \"description\": \"Auto WO from critical vibration alert\"\n  },\n  \"x-agent-context\": {\n    \"route\": \"work-order-agent\",\n    \"delegation\": \"broker\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Maintenance History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/maintenance/v1/assets/A-1001/maintenance-history?limit=50",
+              "host": [
+                "https://api.example.com/maintenance/v1/assets/A-1001/maintenance-history?limit=50"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Work Order Management API",
+      "item": [
+        {
+          "name": "Create Work Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/workorders/v1/workorders",
+              "host": [
+                "https://api.example.com/workorders/v1/workorders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assetId\": \"A-1001\",\n  \"description\": \"Bearing replacement due to high vibration\",\n  \"priority\": \"HIGH\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Work Order",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/workorders/v1/workorders/WO-1000",
+              "host": [
+                "https://api.example.com/workorders/v1/workorders/WO-1000"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Work Order",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/workorders/v1/workorders/WO-1000",
+              "host": [
+                "https://api.example.com/workorders/v1/workorders/WO-1000"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"SCHEDULED\",\n  \"technician\": \"tech.alvarez\",\n  \"scheduledFor\": \"2025-11-01T08:00:00Z\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Close Work Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/workorders/v1/workorders/WO-1000/close",
+              "host": [
+                "https://api.example.com/workorders/v1/workorders/WO-1000/close"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Procurement & Inventory API",
+      "item": [
+        {
+          "name": "List Low Inventory",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/procurement/v1/inventory/items?status=low",
+              "host": [
+                "https://api.example.com/procurement/v1/inventory/items?status=low"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Requisition",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/procurement/v1/procurement/requisitions",
+              "host": [
+                "https://api.example.com/procurement/v1/procurement/requisitions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"PART\",\n  \"requestedBy\": \"work-order-agent\",\n  \"items\": [\n    {\n      \"sku\": \"BRG-6205\",\n      \"quantity\": 4\n    }\n  ],\n  \"x-agent-context\": {\n    \"route\": \"procurement-agent\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Requisition Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/procurement/v1/procurement/requisitions/RQ-2001/status",
+              "host": [
+                "https://api.example.com/procurement/v1/procurement/requisitions/RQ-2001/status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Vendor Compliance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/procurement/v1/vendors/VEND-77/compliance",
+              "host": [
+                "https://api.example.com/procurement/v1/vendors/VEND-77/compliance"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Turnaround Planning API",
+      "item": [
+        {
+          "name": "Create Turnaround",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/turnarounds/v1/turnarounds",
+              "host": [
+                "https://api.example.com/turnarounds/v1/turnarounds"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"TA-2026-Unit3\",\n  \"scope\": \"Scope v1\",\n  \"plannedStart\": \"2026-02-01T00:00:00Z\",\n  \"plannedEnd\": \"2026-03-15T00:00:00Z\",\n  \"status\": \"PLANNED\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Add Tasks",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/turnarounds/v1/turnarounds/TA-2026-Unit3/tasks",
+              "host": [
+                "https://api.example.com/turnarounds/v1/turnarounds/TA-2026-Unit3/tasks"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"name\": \"Isolation and Lockout\"\n  },\n  {\n    \"name\": \"Catalyst changeout\",\n    \"dependencies\": [\n      \"Isolation and Lockout\"\n    ]\n  }\n]"
+            }
+          }
+        },
+        {
+          "name": "Get Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/turnarounds/v1/turnarounds/TA-2026-Unit3/status",
+              "host": [
+                "https://api.example.com/turnarounds/v1/turnarounds/TA-2026-Unit3/status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Compliance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/turnarounds/v1/turnarounds/TA-2026-Unit3/compliance",
+              "host": [
+                "https://api.example.com/turnarounds/v1/turnarounds/TA-2026-Unit3/compliance"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Order-to-Cash API",
+      "item": [
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/o2c/v1/orders",
+              "host": [
+                "https://api.example.com/o2c/v1/orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"CUST-99\",\n  \"items\": [\n    {\n      \"sku\": \"TOOL-9000\",\n      \"quantity\": 2\n    }\n  ],\n  \"x-agent-context\": {\n    \"route\": \"order-agent\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Order Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/o2c/v1/orders/ORD-500/status",
+              "host": [
+                "https://api.example.com/o2c/v1/orders/ORD-500/status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Asset Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/o2c/v1/assets/A-1001/health",
+              "host": [
+                "https://api.example.com/o2c/v1/assets/A-1001/health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.example.com/o2c/v1/billing/invoices",
+              "host": [
+                "https://api.example.com/o2c/v1/billing/invoices"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"ORD-500\",\n  \"amount\": 125000.0,\n  \"currency\": \"USD\",\n  \"status\": \"DRAFT\"\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

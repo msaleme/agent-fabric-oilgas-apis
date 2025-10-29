@@ -1,0 +1,176 @@
+openapi: 3.1.0
+info:
+  title: Work Order Management API
+  version: 1.0.0
+  description: Standardized interface for creating, updating, retrieving, and closing maintenance work orders.
+servers:
+  - url: https://api.example.com/workorders/v1
+tags:
+  - name: Health
+  - name: Work Orders
+security:
+  - oauth2: [workorders:read, workorders:create, workorders:update, workorders:close]
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes:
+            workorders:read: Read work order data
+            workorders:create: Create new work orders
+            workorders:update: Update existing work orders
+            workorders:close: Close work orders
+  parameters:
+    WorkOrderIdParam:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+  headers:
+    X-Correlation-Id:
+      description: Correlates requests across the Agent Fabric
+      schema:
+        type: string
+    X-RateLimit-Remaining:
+      description: Number of requests remaining in current window
+      schema:
+        type: integer
+    X-Total-Count:
+      description: Total number of items (for paginated responses)
+      schema:
+        type: integer
+  schemas:
+    WorkOrder:
+      type: object
+      properties:
+        id: { type: string, readOnly: true }
+        assetId: { type: string }
+        status: { type: string, enum: ["NEW", "SCHEDULED", "IN_PROGRESS", "COMPLETED", "CLOSED"] }
+        priority: { type: string, enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] }
+        description: { type: string }
+        technician: { type: string, nullable: true }
+        scheduledFor: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time, readOnly: true }
+        updatedAt: { type: string, format: date-time, readOnly: true }
+        x-agent-context:
+          type: object
+          additionalProperties: true
+    CreateWorkOrderRequest:
+      type: object
+      required: [assetId, description]
+      properties:
+        assetId: { type: string }
+        description: { type: string }
+        priority: { type: string, enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"], default: "MEDIUM" }
+        x-agent-context:
+          type: object
+          additionalProperties: true
+    UpdateWorkOrderRequest:
+      type: object
+      properties:
+        status: { type: string }
+        technician: { type: string }
+        scheduledFor: { type: string, format: date-time }
+        description: { type: string }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, example: "VALIDATION_ERROR" }
+        message: { type: string, example: "Invalid work order ID format" }
+        details: { type: object, additionalProperties: true }
+        correlationId: { type: string }
+    AgentContext:
+      type: object
+      properties:
+        sourceAgent: { type: string, example: "maintenance-agent" }
+        targetAgent: { type: string, example: "work-order-agent" }
+        correlationId: { type: string }
+        policies: { type: array, items: { type: string } }
+        priority: { type: string, enum: ["low", "medium", "high", "critical"] }
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check endpoint
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: "healthy" }
+                  timestamp: { type: string, format: date-time }
+                  version: { type: string, example: "1.0.0" }
+  /workorders:
+    post:
+      tags: [Work Orders]
+      summary: Create a maintenance work order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateWorkOrderRequest" }
+      responses:
+        "201":
+          description: Work order created
+          headers:
+            X-Correlation-Id: { $ref: "#/components/headers/X-Correlation-Id" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkOrder" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /workorders/{id}:
+    get:
+      tags: [Work Orders]
+      summary: Get a work order by ID
+      parameters:
+        - $ref: "#/components/parameters/WorkOrderIdParam"
+      responses:
+        "200":
+          description: Work order details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkOrder" }
+    patch:
+      tags: [Work Orders]
+      summary: Update a work order
+      parameters:
+        - $ref: "#/components/parameters/WorkOrderIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateWorkOrderRequest" }
+      responses:
+        "200":
+          description: Updated work order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkOrder" }
+  /workorders/{id}/close:
+    post:
+      tags: [Work Orders]
+      summary: Close a work order
+      parameters:
+        - $ref: "#/components/parameters/WorkOrderIdParam"
+      responses:
+        "200":
+          description: Closed work order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkOrder" }

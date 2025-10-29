@@ -1,0 +1,181 @@
+openapi: 3.1.0
+info:
+  title: Order-to-Cash API
+  version: 1.0.0
+  description: >
+    Integrates Order, Logistics, Asset Health, and Billing Agents to enable a closed-loop
+    financial and operational flow.
+servers:
+  - url: https://api.example.com/o2c/v1
+tags:
+  - name: Health
+  - name: Orders
+  - name: Logistics
+  - name: Asset Health
+  - name: Billing
+security:
+  - oauth2: [orders:create, orders:fulfill, billing:manage, assets:monitor]
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes:
+            orders:create: Create new orders
+            orders:fulfill: Fulfill and manage orders
+            billing:manage: Manage billing and invoices
+            assets:monitor: Monitor asset health and utilization
+  parameters:
+    OrderIdParam:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    AssetIdParam:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+  headers:
+    X-Correlation-Id:
+      description: Correlates requests across the Agent Fabric
+      schema:
+        type: string
+    X-RateLimit-Remaining:
+      description: Number of requests remaining in current window
+      schema:
+        type: integer
+    X-Total-Count:
+      description: Total number of items (for paginated responses)
+      schema:
+        type: integer
+  schemas:
+    Order:
+      type: object
+      properties:
+        id: { type: string, readOnly: true }
+        customerId: { type: string }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              sku: { type: string }
+              quantity: { type: number }
+        status: { type: string, enum: ["RECEIVED", "VALIDATED", "ALLOCATED", "SHIPPED", "BILLED"] }
+        x-agent-context:
+          type: object
+          additionalProperties: true
+    OrderStatus:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string }
+        lastUpdated: { type: string, format: date-time }
+    AssetHealth:
+      type: object
+      properties:
+        assetId: { type: string }
+        utilizationPct: { type: number }
+        lastServiceAt: { type: string, format: date-time }
+        issues:
+          type: array
+          items: { type: string }
+    Invoice:
+      type: object
+      properties:
+        id: { type: string, readOnly: true }
+        orderId: { type: string }
+        amount: { type: number }
+        currency: { type: string, example: "USD" }
+        issuedAt: { type: string, format: date-time }
+        status: { type: string, enum: ["DRAFT", "ISSUED", "PAID", "VOID"] }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, example: "VALIDATION_ERROR" }
+        message: { type: string, example: "Invalid order ID format" }
+        details: { type: object, additionalProperties: true }
+        correlationId: { type: string }
+    AgentContext:
+      type: object
+      properties:
+        sourceAgent: { type: string, example: "order-agent" }
+        targetAgent: { type: string, example: "billing-agent" }
+        correlationId: { type: string }
+        policies: { type: array, items: { type: string } }
+        priority: { type: string, enum: ["low", "medium", "high", "critical"] }
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check endpoint
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: "healthy" }
+                  timestamp: { type: string, format: date-time }
+                  version: { type: string, example: "1.0.0" }
+  /orders:
+    post:
+      tags: [Orders]
+      summary: Create a new order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Order" }
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+  /orders/{id}/status:
+    get:
+      tags: [Orders]
+      summary: Get order status
+      parameters:
+        - $ref: "#/components/parameters/OrderIdParam"
+      responses:
+        "200":
+          description: Order status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrderStatus" }
+  /assets/{id}/health:
+    get:
+      tags: [Asset Health]
+      summary: Get asset health and utilization
+      parameters:
+        - $ref: "#/components/parameters/AssetIdParam"
+      responses:
+        "200":
+          description: Asset health
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssetHealth" }
+  /billing/invoices:
+    post:
+      tags: [Billing]
+      summary: Create an invoice for an order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Invoice" }
+      responses:
+        "201":
+          description: Invoice created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invoice" }

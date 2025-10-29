@@ -1,0 +1,177 @@
+openapi: 3.1.0
+info:
+  title: Procurement & Inventory API
+  version: 1.0.0
+  description: >
+    Allows agents to check inventory, create requisitions, track status, and validate vendor compliance.
+servers:
+  - url: https://api.example.com/procurement/v1
+tags:
+  - name: Health
+  - name: Inventory
+  - name: Requisitions
+  - name: Vendors
+security:
+  - oauth2: [procurement:read, procurement:approve, inventory:manage, vendors:validate]
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes:
+            procurement:read: Read procurement data
+            procurement:approve: Approve requisitions
+            inventory:manage: Manage inventory items
+            vendors:validate: Validate vendor compliance
+  parameters:
+    RequisitionIdParam:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    VendorIdParam:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+  headers:
+    X-Correlation-Id:
+      description: Correlates requests across the Agent Fabric
+      schema:
+        type: string
+    X-RateLimit-Remaining:
+      description: Number of requests remaining in current window
+      schema:
+        type: integer
+    X-Total-Count:
+      description: Total number of items (for paginated responses)
+      schema:
+        type: integer
+  schemas:
+    InventoryItem:
+      type: object
+      properties:
+        sku: { type: string }
+        description: { type: string }
+        onHand: { type: integer }
+        uom: { type: string, example: "EA" }
+        status: { type: string, enum: ["in_stock", "low", "out_of_stock"] }
+    Requisition:
+      type: object
+      properties:
+        id: { type: string, readOnly: true }
+        type: { type: string, enum: ["PART", "CONTRACTOR"] }
+        requestedBy: { type: string }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              sku: { type: string }
+              quantity: { type: number }
+        status: { type: string, enum: ["PENDING", "APPROVED", "REJECTED", "FULFILLED"] }
+        x-agent-context:
+          type: object
+          additionalProperties: true
+    ComplianceStatus:
+      type: object
+      properties:
+        vendorId: { type: string }
+        validThrough: { type: string, format: date }
+        certifications:
+          type: array
+          items: { type: string, example: "ISN-Safety" }
+        isCompliant: { type: boolean }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, example: "VALIDATION_ERROR" }
+        message: { type: string, example: "Invalid requisition ID format" }
+        details: { type: object, additionalProperties: true }
+        correlationId: { type: string }
+    AgentContext:
+      type: object
+      properties:
+        sourceAgent: { type: string, example: "work-order-agent" }
+        targetAgent: { type: string, example: "procurement-agent" }
+        correlationId: { type: string }
+        policies: { type: array, items: { type: string } }
+        priority: { type: string, enum: ["low", "medium", "high", "critical"] }
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check endpoint
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: "healthy" }
+                  timestamp: { type: string, format: date-time }
+                  version: { type: string, example: "1.0.0" }
+  /inventory/items:
+    get:
+      tags: [Inventory]
+      summary: List inventory items with optional filters
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: ["in_stock", "low", "out_of_stock"] }
+        - in: query
+          name: sku
+          schema: { type: string }
+      responses:
+        "200":
+          description: Inventory list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/InventoryItem" }
+  /procurement/requisitions:
+    post:
+      tags: [Requisitions]
+      summary: Create a requisition for parts or contractors
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Requisition" }
+      responses:
+        "201":
+          description: Requisition created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Requisition" }
+  /procurement/requisitions/{id}/status:
+    get:
+      tags: [Requisitions]
+      summary: Get requisition status
+      parameters:
+        - $ref: "#/components/parameters/RequisitionIdParam"
+      responses:
+        "200":
+          description: Requisition status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Requisition" }
+  /vendors/{id}/compliance:
+    get:
+      tags: [Vendors]
+      summary: Check vendor compliance
+      parameters:
+        - $ref: "#/components/parameters/VendorIdParam"
+      responses:
+        "200":
+          description: Vendor compliance status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComplianceStatus" }
